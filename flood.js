@@ -6,10 +6,23 @@ var gridHeight = 18;
 var maxTurns = 31;
 var gameOver = false;
 
+console.log(Math.seedrandom("asdf"));
 var colours = ["red", "blue", "yellow", "black", "green", "white"];
+
+function randomString() {
+	var chars = "abcdefghijkmnpqrsuvwxyz23456789";
+	var result = "";
+	for (var i = 0; i < 7; i++) {
+		result += chars[Math.floor(Math.random()*31)];
+	}
+	return result;
+}
+var seed = Math.seedrandom(randomString());
+$("#seedInfo").text(seed);
 function randomColour() {
 	return colours[Math.floor(Math.random() * colours.length)];
 }
+
 
 function Square(row, col, colour) {
 	this.row = row;
@@ -25,8 +38,8 @@ Square.prototype.toColour = function(colour) {
 	}
 }
 var squares = [];
-for (var row = 0; row < gridHeight; row++) {
 	for (var col = 0; col < gridWidth; col++) {
+for (var row = 0; row < gridHeight; row++) {
 		var newSquare = new Square(row, col, randomColour());
 		squares.push(newSquare);
 		var nsElement = $("<div/>", {
@@ -141,7 +154,10 @@ function fill(row, col, newColour) {
 	return -1;
 }
 
-function resetGame() {
+function resetGame(newSeed) {
+	Math.seedrandom(newSeed);
+	seed = newSeed;
+	$("#seedInfo").text(newSeed);
 	squares.forEach(function(square) {
 		square.flooded = false;
 		square.toColour(randomColour());
@@ -151,7 +167,10 @@ function resetGame() {
 	flood(squares[0].colour);
 }
 $("#newGame").click(function() {
-	resetGame();
+	resetGame(randomString());
+});
+$("#retry").click(function() {
+	resetGame(seed);
 });
 
 //initial flood

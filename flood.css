@@ -84,7 +84,7 @@ body {
 	background: #FFE066;
 }
 .green {
-	background: #50514F;
+	background: #525351;
 }
 .black {
 	background: black;
@@ -103,5 +103,7 @@ body {
 	margin-left: 30%;
 	margin-right: 30%;
 	margin-top: 4%;
+	margin-bottom: 4%;
 	border-radius: 5px;
+	cursor: pointer;
 }
