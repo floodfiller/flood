@@ -52,14 +52,16 @@ function Square(row, col, colour) {
 	this.id = (row * gridHeight) + col;
 	this.flooded = false;
 }
+
 Square.prototype.toColour = function(colour) {
 	if (colours.indexOf(colour) != -1) {
 		this.colour = colour;
 		$("#" + this.id).attr("class", "square " + colour);
 	}
 }
+
 var squares = [];
-	for (var col = 0; col < gridWidth; col++) {
+for (var col = 0; col < gridWidth; col++) {
 for (var row = 0; row < gridHeight; row++) {
 		var newSquare = new Square(row, col, randomColour());
 		squares.push(newSquare);

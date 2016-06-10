@@ -48,7 +48,6 @@ body {
 }
 
 .floodfill {
-	background: black;
 	height: 40vw;
 	margin-left: 30vw;
 	margin-right: 30vw;
@@ -58,6 +57,13 @@ body {
 
 .controls {
 	margin-top: 1%;
+	margin-left: 25%;
+	margin-right: 25%;
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	justify-content: center;
+	
 }
 
 .square {
@@ -65,14 +71,22 @@ body {
 	height: 5.5556%;
 	margin: 0;
 	display: inline-block;
+	transition: background-color 450ms linear;
 }
 .controls .square {
-	margin-top: 4%;
+	margin-top: 3%;
 	margin-left: 3%;
 	margin-right: 3%;
-	width: 10%;
-	height: 10%;
-	border-radius: 7px;
+	margin-bottom: 3%;
+	width: 4.5vw;
+	height: 4.5vw;
+	border-radius: 6px;
+	transition-property: background, border-radius;
+	transition-duration: 1s;
+	transition-timing-function: ease-out;
+}
+.controls .square:hover {
+	border-radius: 50%;
 }
 .red {
 	background: #F25F5C;
